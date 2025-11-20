@@ -1,0 +1,7 @@
+[project]
+name = "lab04"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "mpi4py>=4.1.1",
+]
