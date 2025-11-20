@@ -1,0 +1,23 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     sieve
+relocations:
+  - { offset: 0x26, size: 0x8, addend: 0x0, symName: _run_sieve, symObjAddr: 0x0, symBinAddr: 0x10000317C, symSize: 0xE8 }
+  - { offset: 0xDF, size: 0x8, addend: 0x0, symName: _run_sieve, symObjAddr: 0x0, symBinAddr: 0x10000317C, symSize: 0xE8 }
+  - { offset: 0x149, size: 0x8, addend: 0x0, symName: _bitset_set, symObjAddr: 0xE8, symBinAddr: 0x100003264, symSize: 0x44 }
+  - { offset: 0x17B, size: 0x8, addend: 0x0, symName: _bitset_test, symObjAddr: 0x12C, symBinAddr: 0x1000032A8, symSize: 0x48 }
+  - { offset: 0x1B1, size: 0x8, addend: 0x0, symName: _count_primes, symObjAddr: 0x174, symBinAddr: 0x1000032F0, symSize: 0x88 }
+  - { offset: 0x211, size: 0x8, addend: 0x0, symName: _set_primes, symObjAddr: 0x1FC, symBinAddr: 0x100003378, symSize: 0xA0 }
+  - { offset: 0x289, size: 0x8, addend: 0x0, symName: _block_decompose, symObjAddr: 0x29C, symBinAddr: 0x100003418, symSize: 0x118 }
+  - { offset: 0x35C, size: 0x8, addend: 0x0, symName: _mark_base_primes, symObjAddr: 0x3B4, symBinAddr: 0x100003530, symSize: 0x118 }
+  - { offset: 0x41A, size: 0x8, addend: 0x0, symName: _gather_local_counts, symObjAddr: 0x4CC, symBinAddr: 0x100003648, symSize: 0x80 }
+  - { offset: 0x46C, size: 0x8, addend: 0x0, symName: _gather_total_c_count, symObjAddr: 0x54C, symBinAddr: 0x1000036C8, symSize: 0x10C }
+  - { offset: 0x4E8, size: 0x8, addend: 0x0, symName: _gather_primes, symObjAddr: 0x658, symBinAddr: 0x1000037D4, symSize: 0x9C }
+  - { offset: 0x564, size: 0x8, addend: 0x0, symName: _print_array, symObjAddr: 0x6F4, symBinAddr: 0x100003870, symSize: 0x74 }
+  - { offset: 0x5B2, size: 0x8, addend: 0x0, symName: _init_shared_comm, symObjAddr: 0x768, symBinAddr: 0x1000038E4, symSize: 0x64 }
+  - { offset: 0x5F2, size: 0x8, addend: 0x0, symName: _calculate_shared_interval, symObjAddr: 0x7CC, symBinAddr: 0x100003948, symSize: 0x68 }
+  - { offset: 0x64E, size: 0x8, addend: 0x0, symName: _allocate_shared_bitset, symObjAddr: 0x834, symBinAddr: 0x1000039B0, symSize: 0x8C }
+  - { offset: 0x6C6, size: 0x8, addend: 0x0, symName: _get_shared_memory_pointer, symObjAddr: 0x8C0, symBinAddr: 0x100003A3C, symSize: 0x98 }
+  - { offset: 0x750, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x958, symBinAddr: 0x100003AD4, symSize: 0x318 }
+  - { offset: 0x914, size: 0x8, addend: 0x0, symName: _bitset_calloc, symObjAddr: 0xC70, symBinAddr: 0x100003DEC, symSize: 0x3C }
+...
