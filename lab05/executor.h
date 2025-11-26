@@ -6,7 +6,7 @@
 #include <math.h>
 
 #define MAX_NODES 20
-#define INITIAL_DEPTH 1
+#define INITIAL_DEPTH 3
 
 #define TAG_TASK 1
 #define TAG_RESULT 2
@@ -181,8 +181,6 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
     start_task.path[0] = 0;
     queue[q_tail++] = start_task;
 
-    printf("Master: Generating prefixes up to depth %d...\n", INITIAL_DEPTH);
-
     while (q_head != q_tail) 
     {
         if (queue[q_head].count >= INITIAL_DEPTH)
@@ -211,7 +209,6 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
     }
 
     int total_tasks = q_tail - q_head;
-    printf("Master: Generated %d sub-problems.\n", total_tasks);
 
     // dispatch tasks
     int tasks_sent = 0;
@@ -244,7 +241,6 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
             global_best_cost = res.cost;
             // COPY PATH locally
             memcpy(global_best_path, res.path, sizeof(int) * g->n);
-            printf("New Best: %f\n", global_best_cost);
         }
 
         if (q_head < q_tail) 
@@ -253,8 +249,6 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
             active_workers++;
         }
     }
-
-    printf("Master: All tasks done. Best Cost: %f\n", global_best_cost);
 
     // cleanup
     for (int w = 1; w <= num_workers; w++) 
