@@ -1,111 +1,97 @@
 import os
 import time
 import subprocess
+import numpy as np
 import matplotlib.pyplot as plt
 
 def time_once(cmd):
     t0 = time.perf_counter()
+    print("benchmarking ", cmd)
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return time.perf_counter() - t0
 
 def build_cmd(process_count, prefix_count):
     return ["mpiexec", "-n", str(process_count), "./salesman", str(prefix_count)]
 
-def bench_grid(grid_size, thread_counts, repeats):
+def bench_grid(prefix_count, thread_counts, repeats):
     means = []
-
+    stds = []
     for p in thread_counts:
-        runs = [time_once(build_cmd(p, grid_size)) for _ in range(repeats)]
-        mean = sum(runs) / repeats
-        means.append(mean)
-        print(f"N={grid_size}, p={p}: runs={', '.join(f'{r:.3f}s' for r in runs)} | mean={mean:.3f}s")
+        runs = [time_once(build_cmd(p, prefix_count)) for _ in range(repeats)]
+        means.append(np.mean(runs))
+        stds.append(np.std(runs))
+    return np.array(means), np.array(stds)
 
-    return means
-
-def compute_metrics(runtimes_by_grid, thread_counts):
-    speedup_by_grid = {}
-    efficiency_by_grid = {}
-    for N, means in runtimes_by_grid.items():
-
-        T1 = means[0]
-        s = [T1 / m for m in means]           
-        e = [si / p for si, p in zip(s, thread_counts)]
+def compute_metrics(runtimes, thread_counts):
+    results = {}
+    for N, (means, stds) in runtimes.items():
+        t1 = means[0]
+        speedup = t1 / means
+        efficiency = speedup / thread_counts
         
-        speedup_by_grid[N] = s
-        efficiency_by_grid[N] = e
-    return speedup_by_grid, efficiency_by_grid
+        sf = []
+        sf_threads = []
+        for s, p in zip(speedup, thread_counts):
+            if p > 1:
+                e = ((1/s) - (1/p)) / (1 - (1/p))
+                sf.append(e)
+                sf_threads.append(p)
+        
+        results[N] = {
+            "mean": means,
+            "std": stds,
+            "speedup": speedup,
+            "efficiency": efficiency,
+            "serial_fraction": np.array(sf),
+            "sf_threads": np.array(sf_threads)
+        }
 
-def plot_lines(y_by_grid, thread_counts, title, y_label, out_file, karp=False, repeats=1):
-    plt.figure(figsize=(8, 5))
+    return results
 
-    for N, ys in sorted(y_by_grid.items()):
-        xs = thread_counts[1:] if karp else thread_counts
-        plt.plot(xs, ys if not karp else ys, marker="o", label=f"N={N}")
-
-    plt.xlabel("Thread count (processes)")
-    plt.ylabel(f"{y_label} (avg of {repeats} runs)")
-    plt.title(title)
-    plt.legend(title="Grid size")
+def plot_all(results, thread_counts, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    metrics = [
+        ("Runtime vs Processes", "mean", "Time [s]", "runtime.png", True),
+        ("Speedup vs Processes", "speedup", "Speedup (T1/Tp)", "speedup.png", False),
+        ("Efficiency vs Processes", "efficiency", "Efficiency (S/p)", "efficiency.png", False),
+        ("Serial Fraction (Karp-Flatt)", "serial_fraction", "Serial Fraction", "serial_fraction.png", False)
+    ]
     
-    plt.tight_layout()
-    os.makedirs(os.path.dirname(out_file), exist_ok=True)
-    plt.savefig(out_file, dpi=200, bbox_inches="tight")
-    plt.show()
+    colors = plt.cm.viridis(np.linspace(0, 0.9, len(results)))
+    
+    for title, key, ylabel, fname, use_band in metrics:
+        plt.figure(figsize=(8, 5))
+        
+        for (N, data), color in zip(sorted(results.items()), colors):
+            x = thread_counts
+            y = data[key]
+            
+            if key == "serial_fraction":
+                x = data["sf_threads"]
+            
+            plt.plot(x, y, marker="o", label=f"Depth={N}", color=color)
+            
+            if use_band:
+                std = data["std"]
+                plt.fill_between(x, y - std, y + std, color=color, alpha=0.2)
+                
+        plt.xlabel("Process count")
+        plt.ylabel(ylabel)
+        plt.title(title)
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(os.path.join(out_dir, fname), dpi=200)
+        plt.close()
 
 def main():
     PREFIX_COUNTS = [2, 3, 4]
-    THREAD_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    REPEATS       = 3
-
-    # 1) collect runtimes
-    runtimes_by_grid = {N: bench_grid(N, THREAD_COUNTS, REPEATS) for N in PREFIX_COUNTS}
-
-    # 2) plot runtime (one line per grid size)
-    plot_lines(
-        y_by_grid=runtimes_by_grid,
-        thread_counts=THREAD_COUNTS,
-        title="Runtime vs thread count",
-        y_label="Wall time [s]",
-        out_file="data/benchmarks/runtime_vs_threads.png",
-        karp=False,
-        repeats=REPEATS
-    )
-
-    # 3) compute derived metrics
-    speedup_by_grid, efficiency_by_grid, karp_by_grid = compute_metrics(runtimes_by_grid, THREAD_COUNTS)
-
-    # 4) plot speedup
-    plot_lines(
-        y_by_grid=speedup_by_grid,
-        thread_counts=THREAD_COUNTS,
-        title="Speedup vs thread count",
-        y_label="Speedup (T1/Tp)",
-        out_file="data/benchmarks/speedup_vs_threads.png",
-        karp=False,
-        repeats=REPEATS
-    )
-
-    # 5) plot efficiency
-    plot_lines(
-        y_by_grid=efficiency_by_grid,
-        thread_counts=THREAD_COUNTS,
-        title="Efficiency vs thread count",
-        y_label="Efficiency (Speedup / p)",
-        out_file="data/benchmarks/efficiency_vs_threads.png",
-        karp=False,
-        repeats=REPEATS
-    )
-
-    # 6) plot Karp–Flatt (note: p>1 only)
-    plot_lines(
-        y_by_grid=karp_by_grid,
-        thread_counts=THREAD_COUNTS,
-        title="Karp-Flatt metric vs thread count",
-        y_label="Karp-Flatt ε",
-        out_file="data/benchmarks/karp_flatt_vs_threads.png",
-        karp=True,
-        repeats=REPEATS
-    )
+    THREAD_COUNTS = np.arange(1, 11)
+    REPEATS = 10
+    
+    runtimes = {N: bench_grid(N, THREAD_COUNTS, REPEATS) for N in PREFIX_COUNTS}
+    metrics = compute_metrics(runtimes, THREAD_COUNTS)
+    plot_all(metrics, THREAD_COUNTS, "data/benchmarks")
 
 if __name__ == "__main__":
     main()

@@ -60,10 +60,11 @@ def visualize(coords, path, cost):
     plt.axis('equal') 
     
     plt.tight_layout()
+    plt.savefig("data/benchmarks/vis.png")
     plt.show()
 
 if __name__ == "__main__":
-    DIR = "data/run2/"
+    DIR = "data/"
     coordinates = load_coordinates(DIR + "coords.txt")
     cost, solution_path = load_solution(DIR + "solution.txt")
     visualize(coordinates, solution_path, cost)

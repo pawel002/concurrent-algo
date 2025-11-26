@@ -6,7 +6,7 @@
 #include <math.h>
 
 #define MAX_NODES 20
-#define INITIAL_DEPTH 3
+#define DEFAULT_INITIAL_DEPTH 3
 
 #define TAG_TASK 1
 #define TAG_RESULT 2
@@ -31,7 +31,6 @@ typedef struct {
     int path[MAX_NODES];
 } SearchResult;
 
-// helpers
 float calc_dist(float x1, float y1, float x2, float y2) 
 {
     return sqrtf(powf(x1 - x2, 2) + powf(y1 - y2, 2));
@@ -71,7 +70,6 @@ void save_solution(const char* filename, int* path, int n, float cost) {
     for (int i = 0; i < n; i++) {
         fprintf(f, "%d ", path[i]);
     }
-
     fprintf(f, "%d\n", path[0]);
 
     fclose(f);
@@ -111,6 +109,7 @@ void create_result_type(MPI_Datatype *dt) {
     MPI_Type_create_struct(2, blocks, disps, types, dt);
     MPI_Type_commit(dt);
 }
+
 
 // solve for subtree
 void solve_subtree_recursive(Graph *g, Task t, float *local_best_cost, int *local_best_path) {
@@ -167,8 +166,7 @@ void worker(int rank, Graph *g, MPI_Datatype task_type, MPI_Datatype result_type
     }
 }
 
-// master node
-void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype result_type, int save) 
+void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype result_type, int save, int initial_depth) 
 {
     Task *queue = (Task*) malloc(sizeof(Task) * 50000); 
     int q_head = 0;
@@ -183,7 +181,7 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
 
     while (q_head != q_tail) 
     {
-        if (queue[q_head].count >= INITIAL_DEPTH)
+        if (queue[q_head].count >= initial_depth)
             break; 
         
         Task t = queue[q_head++];
@@ -210,51 +208,63 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
 
     int total_tasks = q_tail - q_head;
 
-    // dispatch tasks
-    int tasks_sent = 0;
-    int tasks_completed = 0;
-    int active_workers = 0;
-
-    // initial call
-    for (int w = 1; w <= num_workers; w++) 
+    if (num_workers == 0) 
     {
-        if (q_head < q_tail) 
+        while(q_head < q_tail) 
         {
-            MPI_Send(&queue[q_head++], 1, task_type, w, TAG_TASK, MPI_COMM_WORLD);
-            tasks_sent++;
-            active_workers++;
+            Task t = queue[q_head++];
+            solve_subtree_recursive(g, t, &global_best_cost, global_best_path);
         }
     }
-
-    // dynamic loop
-    while (tasks_completed < total_tasks) 
+    else
     {
-        SearchResult res;
-        MPI_Status status;
-        
-        MPI_Recv(&res, 1, result_type, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
-        
-        active_workers--;
-        tasks_completed++;
-        
-        if (res.cost < global_best_cost) {
-            global_best_cost = res.cost;
-            // COPY PATH locally
-            memcpy(global_best_path, res.path, sizeof(int) * g->n);
-        }
-
-        if (q_head < q_tail) 
+        // dispatch tasks
+        int tasks_sent = 0;
+        int tasks_completed = 0;
+        int active_workers = 0;
+    
+        // initial call
+        for (int w = 1; w <= num_workers; w++) 
         {
-            MPI_Send(&queue[q_head++], 1, task_type, status.MPI_SOURCE, TAG_TASK, MPI_COMM_WORLD);
-            active_workers++;
+            if (q_head < q_tail) 
+            {
+                MPI_Send(&queue[q_head++], 1, task_type, w, TAG_TASK, MPI_COMM_WORLD);
+                tasks_sent++;
+                active_workers++;
+            }
+        }
+    
+        // dynamic loop
+        while (tasks_completed < total_tasks) 
+        {
+            SearchResult res;
+            MPI_Status status;
+            
+            MPI_Recv(&res, 1, result_type, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &status);
+            
+            active_workers--;
+            tasks_completed++;
+            
+            if (res.cost < global_best_cost) {
+                global_best_cost = res.cost;
+                // COPY PATH locally
+                memcpy(global_best_path, res.path, sizeof(int) * g->n);
+            }
+    
+            if (q_head < q_tail) 
+            {
+                MPI_Send(&queue[q_head++], 1, task_type, status.MPI_SOURCE, TAG_TASK, MPI_COMM_WORLD);
+                active_workers++;
+            }
+        }
+    
+        // cleanup
+        for (int w = 1; w <= num_workers; w++) 
+        {
+            MPI_Send(NULL, 0, MPI_INT, w, TAG_KILL, MPI_COMM_WORLD);
         }
     }
-
-    // cleanup
-    for (int w = 1; w <= num_workers; w++) 
-    {
-        MPI_Send(NULL, 0, MPI_INT, w, TAG_KILL, MPI_COMM_WORLD);
-    }
+    
     free(queue);
 
     // save to file
