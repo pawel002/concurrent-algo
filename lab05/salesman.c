@@ -1,5 +1,7 @@
 #include "executor.h"
 
+#define DEFAULT_INITIAL_DEPTH 3
+
 #define PI 3.14159265358979323846
 
 int main(int argc, char** argv) 
@@ -22,7 +24,6 @@ int main(int argc, char** argv)
 
     MPI_Datatype task_type;
     create_task_type(&task_type);
-    
     MPI_Datatype result_type;
     create_result_type(&result_type); 
 

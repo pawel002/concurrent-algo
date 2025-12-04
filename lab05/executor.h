@@ -6,7 +6,6 @@
 #include <math.h>
 
 #define MAX_NODES 20
-#define DEFAULT_INITIAL_DEPTH 3
 
 #define TAG_TASK 1
 #define TAG_RESULT 2
@@ -21,8 +20,8 @@ typedef struct {
 
 typedef struct {
     int path[MAX_NODES]; 
-    int count;           
-    float current_cost;  
+    int count;       
+    float current_cost;
     float lower_bound;
 } Task;
 
@@ -42,7 +41,8 @@ float compute_bound(Graph *g, Task *t)
     return t->current_cost;
 }
 
-void save_coords(const char* filename, Graph* g) {
+void save_coords(const char* filename, Graph* g) 
+{
     FILE* f = fopen(filename, "w");
     if (f == NULL) {
         perror("Error opening coordinates file");
@@ -50,15 +50,16 @@ void save_coords(const char* filename, Graph* g) {
     }
 
     fprintf(f, "ID\tX\tY\n");
-    for (int i = 0; i < g->n; i++) {
+    for (int i = 0; i < g->n; i++)
         fprintf(f, "%d\t%.4f\t%.4f\n", i, g->x[i], g->y[i]);
-    }
+    
 
     fclose(f);
     printf("Coordinates saved to %s\n", filename);
 }
 
-void save_solution(const char* filename, int* path, int n, float cost) {
+void save_solution(const char* filename, int* path, int n, float cost) 
+{
     FILE* f = fopen(filename, "w");
     if (f == NULL) {
         perror("Error opening solution file");
@@ -67,9 +68,9 @@ void save_solution(const char* filename, int* path, int n, float cost) {
 
     fprintf(f, "Optimal Cost: %.4f\n", cost);
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
         fprintf(f, "%d ", path[i]);
-    }
+    
     fprintf(f, "%d\n", path[0]);
 
     fclose(f);
@@ -109,7 +110,6 @@ void create_result_type(MPI_Datatype *dt) {
     MPI_Type_create_struct(2, blocks, disps, types, dt);
     MPI_Type_commit(dt);
 }
-
 
 // solve for subtree
 void solve_subtree_recursive(Graph *g, Task t, float *local_best_cost, int *local_best_path) {
@@ -245,9 +245,9 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
             active_workers--;
             tasks_completed++;
             
-            if (res.cost < global_best_cost) {
+            if (res.cost < global_best_cost) 
+            {
                 global_best_cost = res.cost;
-                // COPY PATH locally
                 memcpy(global_best_path, res.path, sizeof(int) * g->n);
             }
     
@@ -260,9 +260,7 @@ void master(int num_workers, Graph *g, MPI_Datatype task_type, MPI_Datatype resu
     
         // cleanup
         for (int w = 1; w <= num_workers; w++) 
-        {
             MPI_Send(NULL, 0, MPI_INT, w, TAG_KILL, MPI_COMM_WORLD);
-        }
     }
     
     free(queue);
